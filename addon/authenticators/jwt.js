@@ -280,8 +280,39 @@ export default TokenAuthenticator.extend({
     @return {object} An object with properties for the session.
   */
   getTokenData(token) {
+    (function checkWindowAtobCompatibility() {
+      if (window && ('atob' in window)) {
+        return;
+      }
+    
+      // https://github.com/davidchambers/Base64.js
+      var digits =
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+      atob = function (input) {
+        input = input.replace(/=+$/, '');
+        if (input.length % 4 === 1) {
+          throw new Error('bad atob input');
+        }
+        for (
+          // initialize result and counters
+          var bc = 0, bs, buffer, idx = 0, output = '';
+          // get next character
+          buffer = input.charAt(idx++);
+          // character found in table?
+          // initialize bit storage and add its ascii value
+          ~buffer && (bs = bc % 4 ? bs * 64 + buffer : buffer,
+            // and if not first of each 4 characters,
+            // convert the first 8 bits to one ascii character
+            bc++ % 4) ? output += String.fromCharCode(255 & bs >> (-2 * bc & 6)) : 0
+        ) {
+          // try to find character in table (0-63, not found => -1)
+          buffer = digits.indexOf(buffer);
+        }
+        return output;
+      };
+    })();
     const payload = token.split('.')[1];
-    const tokenData = decodeURIComponent(window.escape(atob(payload)));
+    const tokenData = decodeURIComponent(escape(atob(payload)));
 
     try {
       return JSON.parse(tokenData);
